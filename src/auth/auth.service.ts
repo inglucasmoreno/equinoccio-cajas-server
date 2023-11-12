@@ -25,7 +25,7 @@ export class AuthService {
 
     // Login
     async login(user: any){
-        // this.logger.error('Probando Winston');
+        const { apellido, nombre, role } = user._doc;
         const payload = {
             userId: String(user._doc._id),
             usuario: user._doc.usuario,
@@ -36,6 +36,11 @@ export class AuthService {
             role: user._doc.role
         };
         return {
+            user: {
+                apellido,
+                nombre,
+                role 
+            },
             token: this.jwtService.sign(payload)
         }
     }
