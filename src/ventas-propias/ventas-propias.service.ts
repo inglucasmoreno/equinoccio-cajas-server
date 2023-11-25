@@ -352,15 +352,15 @@ export class VentasPropiasService {
         });
 
         // Se recorren los cheques
-        cheques.map((cheque: any) => {
+        // cheques.map((cheque: any) => {
 
-            // Calcular el pago total
-            totalPagado += cheque.importe;
+        //     // Calcular el pago total
+        //     totalPagado += cheque.importe;
 
-            // Calcular el monto total en cheques
-            totalEnCheques += cheque.importe;
+        //     // Calcular el monto total en cheques
+        //     totalEnCheques += cheque.importe;
 
-        });
+        // });
 
         // CREACION DE VENTA
         const nuevaVenta = new this.ventasModel({ ...dataVenta, pago_monto: totalPagado });
@@ -377,80 +377,80 @@ export class VentasPropiasService {
 
         // IMPACTO - MOVIMIENTOS CUENTA CORRIENTE DE CLIENTE
 
-        // Proximo numero de movimiento
-        let nroMovimientoCC = 0;
-        const ultimoCCMov = await this.ccClientesMovimientosModel.find().sort({ createdAt: -1 }).limit(1);
-        ultimoCCMov.length === 0 ? nroMovimientoCC = 0 : nroMovimientoCC = Number(ultimoCCMov[0].nro);
+        // // Proximo numero de movimiento
+        // let nroMovimientoCC = 0;
+        // const ultimoCCMov = await this.ccClientesMovimientosModel.find().sort({ createdAt: -1 }).limit(1);
+        // ultimoCCMov.length === 0 ? nroMovimientoCC = 0 : nroMovimientoCC = Number(ultimoCCMov[0].nro);
 
         // (-) Decremento en cuenta corriente de cliente
-        if (decrementoCC) {
-            const cuentaCorrienteDB: any = await this.ccClientesModel.findOne({ cliente });
-            if (cuentaCorrienteDB) {
+        // if (decrementoCC) {
+        //     const cuentaCorrienteDB: any = await this.ccClientesModel.findOne({ cliente });
+        //     if (cuentaCorrienteDB) {
 
-                await this.ccClientesModel.findByIdAndUpdate(cuentaCorrienteDB._id, { saldo: cuentaCorrienteDB.saldo - montoDecremento })
+        //         await this.ccClientesModel.findByIdAndUpdate(cuentaCorrienteDB._id, { saldo: cuentaCorrienteDB.saldo - montoDecremento })
 
-                // Creacion de movimient0
+        //         // Creacion de movimient0
 
-                nroMovimientoCC += 1;
-                const dataMovimiento = {
-                    nro: nroMovimientoCC,
-                    descripcion: `VENTA ${codigoVenta}`,
-                    tipo: 'Haber',
-                    cc_cliente: String(cuentaCorrienteDB._id),
-                    cliente,
-                    venta_propia: String(ventaDB._id),
-                    monto: this.redondear(montoDecremento, 2),
-                    saldo_anterior: this.redondear(cuentaCorrienteDB.saldo, 2),
-                    saldo_nuevo: this.redondear(cuentaCorrienteDB.saldo - montoDecremento, 2),
-                    creatorUser,
-                    updatorUser
-                }
+        //         nroMovimientoCC += 1;
+        //         const dataMovimiento = {
+        //             nro: nroMovimientoCC,
+        //             descripcion: `VENTA ${codigoVenta}`,
+        //             tipo: 'Haber',
+        //             cc_cliente: String(cuentaCorrienteDB._id),
+        //             cliente,
+        //             venta_propia: String(ventaDB._id),
+        //             monto: this.redondear(montoDecremento, 2),
+        //             saldo_anterior: this.redondear(cuentaCorrienteDB.saldo, 2),
+        //             saldo_nuevo: this.redondear(cuentaCorrienteDB.saldo - montoDecremento, 2),
+        //             creatorUser,
+        //             updatorUser
+        //         }
 
-                const nuevoMovimiento = new this.ccClientesMovimientosModel(dataMovimiento);
-                await nuevoMovimiento.save();
+        //         const nuevoMovimiento = new this.ccClientesMovimientosModel(dataMovimiento);
+        //         await nuevoMovimiento.save();
 
-            }
+        //     }
 
-        }
+        // }
 
         // (+) Incremento en cuenta corriente de cliente
-        if (totalPagado > precio_total) {
-            const cuentaCorrienteDB: any = await this.ccClientesModel.findOne({ cliente });
-            if (cuentaCorrienteDB) {
+        // if (totalPagado > precio_total) {
+        //     const cuentaCorrienteDB: any = await this.ccClientesModel.findOne({ cliente });
+        //     if (cuentaCorrienteDB) {
 
-                const montoIncremento = totalPagado - precio_total;
+        //         const montoIncremento = totalPagado - precio_total;
 
-                await this.ccClientesModel.findByIdAndUpdate(cuentaCorrienteDB._id, { saldo: cuentaCorrienteDB.saldo + montoIncremento })
+        //         await this.ccClientesModel.findByIdAndUpdate(cuentaCorrienteDB._id, { saldo: cuentaCorrienteDB.saldo + montoIncremento })
 
-                // Creacion de movimiento
+        //         // Creacion de movimiento
 
-                nroMovimientoCC += 1;
-                const dataMovimiento = {
-                    nro: nroMovimientoCC,
-                    descripcion: `VENTA ${codigoVenta}`,
-                    tipo: 'Debe',
-                    cc_cliente: String(cuentaCorrienteDB._id),
-                    cliente,
-                    venta_propia: String(ventaDB._id),
-                    monto: this.redondear(montoIncremento, 2),
-                    saldo_anterior: this.redondear(cuentaCorrienteDB.saldo, 2),
-                    saldo_nuevo: this.redondear(cuentaCorrienteDB.saldo + montoIncremento, 2),
-                    creatorUser,
-                    updatorUser
-                }
+        //         nroMovimientoCC += 1;
+        //         const dataMovimiento = {
+        //             nro: nroMovimientoCC,
+        //             descripcion: `VENTA ${codigoVenta}`,
+        //             tipo: 'Debe',
+        //             cc_cliente: String(cuentaCorrienteDB._id),
+        //             cliente,
+        //             venta_propia: String(ventaDB._id),
+        //             monto: this.redondear(montoIncremento, 2),
+        //             saldo_anterior: this.redondear(cuentaCorrienteDB.saldo, 2),
+        //             saldo_nuevo: this.redondear(cuentaCorrienteDB.saldo + montoIncremento, 2),
+        //             creatorUser,
+        //             updatorUser
+        //         }
 
-                const nuevoMovimiento = new this.ccClientesMovimientosModel(dataMovimiento);
-                await nuevoMovimiento.save();
-            }
+        //         const nuevoMovimiento = new this.ccClientesMovimientosModel(dataMovimiento);
+        //         await nuevoMovimiento.save();
+        //     }
 
-        }
+        // }
 
         // Proximo numero de movimiento - MOVIMIENTOS DE CAJA
         let nroMovimientoCaja = 0;
         const ultimoCajaMov = await this.cajasMovimientosModel.find().sort({ createdAt: -1 }).limit(1);
         ultimoCajaMov.length === 0 ? nroMovimientoCaja = 0 : nroMovimientoCaja = Number(ultimoCajaMov[0].nro);
 
-        // IMPACTO - EN CAJAS
+        // TODO: IMPACTO - EN CAJAS
         formas_pago.map(async (forma_pago: any) => {
 
             if (forma_pago._id !== 'cuenta_corriente') {
@@ -482,149 +482,152 @@ export class VentasPropiasService {
         });
 
         // IMPACTO - EN SALDOS DE CHEQUES    
-        if (totalEnCheques > 0) {
+        // if (totalEnCheques > 0) {
 
-            const cajaCheques = await this.cajasModel.findById('222222222222222222222222');
+        //     const cajaCheques = await this.cajasModel.findById('222222222222222222222222');
 
-            // Impacto en movimientos de cajas
-            nroMovimientoCaja += 1;
-            const data = {
-                nro: nroMovimientoCaja,
-                descripcion: `VENTA ${codigoVenta}`,
-                tipo: 'Debe',
-                caja: '222222222222222222222222',
-                venta_propia: String(ventaDB._id),
-                monto: this.redondear(totalEnCheques, 2),
-                saldo_anterior: this.redondear(cajaCheques.saldo, 2),
-                saldo_nuevo: this.redondear(cajaCheques.saldo + totalEnCheques, 2),
-                creatorUser,
-                updatorUser
-            };
+        //     // Impacto en movimientos de cajas
+        //     nroMovimientoCaja += 1;
+        //     const data = {
+        //         nro: nroMovimientoCaja,
+        //         descripcion: `VENTA ${codigoVenta}`,
+        //         tipo: 'Debe',
+        //         caja: '222222222222222222222222',
+        //         venta_propia: String(ventaDB._id),
+        //         monto: this.redondear(totalEnCheques, 2),
+        //         saldo_anterior: this.redondear(cajaCheques.saldo, 2),
+        //         saldo_nuevo: this.redondear(cajaCheques.saldo + totalEnCheques, 2),
+        //         creatorUser,
+        //         updatorUser
+        //     };
 
-            const nuevoMovimiento = new this.cajasMovimientosModel(data);
-            await nuevoMovimiento.save();
+        //     const nuevoMovimiento = new this.cajasMovimientosModel(data);
+        //     await nuevoMovimiento.save();
 
-            // Impacto en saldo de cheques
-            await this.cajasModel.findByIdAndUpdate('222222222222222222222222', { $inc: { saldo: totalEnCheques } });
-        }
+        //     // Impacto en saldo de cheques
+        //     await this.cajasModel.findByIdAndUpdate('222222222222222222222222', { $inc: { saldo: totalEnCheques } });
+        // }
 
         // GENERACION DE CHEQUES
 
         // Adaptando fechas
-        cheques.map((cheque: any) => {
-            cheque.fecha_cobro = add(new Date(cheque.fecha_cobro), { hours: 3 });
-        });
+        // cheques.map((cheque: any) => {
+        //     cheque.fecha_cobro = add(new Date(cheque.fecha_cobro), { hours: 3 });
+        // });
 
         // Generando cheques
-        const chequesDB = await this.chequesModel.insertMany(cheques);
+        // const chequesDB = await this.chequesModel.insertMany(cheques);
 
         // GENERACION DE RELACION -> VENTA - CHEQUE
-        const relaciones = [];
+        // const relaciones = [];
 
-        chequesDB.map((cheque: any) => {
-            relaciones.unshift({
-                cheque: String(cheque._id),
-                venta_propia: String(ventaDB._id),
-                creatorUser,
-                updatorUser
-            })
-        });
+        // chequesDB.map((cheque: any) => {
+        //     relaciones.unshift({
+        //         cheque: String(cheque._id),
+        //         venta_propia: String(ventaDB._id),
+        //         creatorUser,
+        //         updatorUser
+        //     })
+        // });
 
-        await this.ventasPropiasChequesModel.insertMany(relaciones);
+        // await this.ventasPropiasChequesModel.insertMany(relaciones);
 
-        // CARGA DE PRODUCTOS
+        // TODO: CARGA DE PRODUCTOS
+        
         let productosVenta: any = productos;
 
         productosVenta.map(producto => producto.venta_propia = String(ventaDB._id))
         await this.ventaProductosModel.insertMany(productosVenta);
 
         // Impacto en stock
-        productosVenta.map( async producto => {
-            await this.productosModel.findByIdAndUpdate(producto.producto, { $inc: { cantidad: -producto.cantidad } })    
-        })
+        // productosVenta.map( async producto => {
+        //     await this.productosModel.findByIdAndUpdate(producto.producto, { $inc: { cantidad: -producto.cantidad } })    
+        // })
 
         // GENERACION DE PDF
 
-        const venta = await this.getId(ventaDB._id);
+        // const venta = await this.getId(ventaDB._id);
 
-        let html: any;
+        // let html: any;
 
-        html = fs.readFileSync((process.env.PDF_TEMPLATE_DIR || './pdf-template') + '/venta-propia.html', 'utf-8');
+        // html = fs.readFileSync((process.env.PDF_TEMPLATE_DIR || './pdf-template') + '/venta-propia.html', 'utf-8');
 
-        var options = {
-            format: 'A4',
-            orientation: 'portrait',
-            border: '10mm',
-            footer: {
-                height: "35mm",
-                contents: {
-                    first: `
-                    <p style="width: 100%; font-size: 9px; padding-bottom: 7px; padding:10px; border-top: 1px solid black; text-align:right; margin-bottom: 10px;"> <b style="background-color:#ECECEC; padding:10px; border-top: 1px solid black;"> Precio total: </b> <span style="background-color:#ECECEC; padding: 10px; border-top: 1px solid black;"> $${Intl.NumberFormat('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(ventaDB.precio_total)} </span> </p>
-                    <p style="width: 100%; font-size: 8px; padding-bottom: 7px;"> <b> Observaciones </b> </p>
-                    <p style="width: 100%; font-size: 8px;"> ${ventaDB.observacion} </p>
-                `,
-                    2: 'Second page',
-                    default: '<span style="color: #444;">{{page}}</span>/<span>{{pages}}</span>',
-                    last: 'Last Page'
-                }
-            }
-        }
+        // var options = {
+        //     format: 'A4',
+        //     orientation: 'portrait',
+        //     border: '10mm',
+        //     footer: {
+        //         height: "35mm",
+        //         contents: {
+        //             first: `
+        //             <p style="width: 100%; font-size: 9px; padding-bottom: 7px; padding:10px; border-top: 1px solid black; text-align:right; margin-bottom: 10px;"> <b style="background-color:#ECECEC; padding:10px; border-top: 1px solid black;"> Precio total: </b> <span style="background-color:#ECECEC; padding: 10px; border-top: 1px solid black;"> $${Intl.NumberFormat('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(ventaDB.precio_total)} </span> </p>
+        //             <p style="width: 100%; font-size: 8px; padding-bottom: 7px;"> <b> Observaciones </b> </p>
+        //             <p style="width: 100%; font-size: 8px;"> ${ventaDB.observacion} </p>
+        //         `,
+        //             2: 'Second page',
+        //             default: '<span style="color: #444;">{{page}}</span>/<span>{{pages}}</span>',
+        //             last: 'Last Page'
+        //         }
+        //     }
+        // }
 
-        let productosPDF: any[] = [];
-        let formasPagoPDF: any[] = [];
-        const productosMap: any = productos;
+        // let productosPDF: any[] = [];
+        // let formasPagoPDF: any[] = [];
+        // const productosMap: any = productos;
 
-        // Adaptando productos
-        productosMap.map(producto => productosPDF.push({
-            descripcion: producto.descripcion,
-            cantidad: Intl.NumberFormat('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(producto.cantidad),
-            unidad_medida: producto.unidad_medida,
-            precio_unitario: Intl.NumberFormat('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(producto.precio_unitario),
-            precio_total: Intl.NumberFormat('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(producto.precio_total)
-        }));
+        // // Adaptando productos
+        // productosMap.map(producto => productosPDF.push({
+        //     descripcion: producto.descripcion,
+        //     cantidad: Intl.NumberFormat('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(producto.cantidad),
+        //     unidad_medida: producto.unidad_medida,
+        //     precio_unitario: Intl.NumberFormat('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(producto.precio_unitario),
+        //     precio_total: Intl.NumberFormat('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(producto.precio_total)
+        // }));
 
-        // Adaptando numero
-        let mostrarNumero: string;
-        const { nro } = ventaDB;
-        if (nro <= 9) mostrarNumero = 'VP000000' + String(nro);
-        else if (nro <= 99) mostrarNumero = 'VP00000' + String(nro);
-        else if (nro <= 999) mostrarNumero = 'VP0000' + String(nro);
-        else if (nro <= 9999) mostrarNumero = 'VP000' + String(nro);
-        else if (nro <= 99999) mostrarNumero = 'VP00' + String(nro);
-        else if (nro <= 999999) mostrarNumero = 'VP0' + String(nro);
+        // // Adaptando numero
+        // let mostrarNumero: string;
+        // const { nro } = ventaDB;
+        // if (nro <= 9) mostrarNumero = 'VP000000' + String(nro);
+        // else if (nro <= 99) mostrarNumero = 'VP00000' + String(nro);
+        // else if (nro <= 999) mostrarNumero = 'VP0000' + String(nro);
+        // else if (nro <= 9999) mostrarNumero = 'VP000' + String(nro);
+        // else if (nro <= 99999) mostrarNumero = 'VP00' + String(nro);
+        // else if (nro <= 999999) mostrarNumero = 'VP0' + String(nro);
 
-        // Adaptando formas de pago
-        venta.formas_pago.map((forma: any) => formasPagoPDF.push({
-            descripcion: forma.descripcion,
-            monto: Intl.NumberFormat('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(forma.monto),
-        }));
+        // // Adaptando formas de pago
+        // venta.formas_pago.map((forma: any) => formasPagoPDF.push({
+        //     descripcion: forma.descripcion,
+        //     monto: Intl.NumberFormat('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(forma.monto),
+        // }));
 
-        // Cheques
-        if (totalEnCheques > 0) formasPagoPDF.push({ descripcion: 'CHEQUES', monto: totalEnCheques });
+        // // Cheques
+        // if (totalEnCheques > 0) formasPagoPDF.push({ descripcion: 'CHEQUES', monto: totalEnCheques });
 
-        const data = {
-            fecha: venta.fecha_venta ? format(venta.fecha_venta, 'dd/MM/yyyy') : format(venta.createdAt, 'dd/MM/yyyy'),
-            numero: mostrarNumero,
-            formas_pago: formasPagoPDF,
-            fecha_venta: add(new Date(fecha_venta), { hours: 3 }),
-            descripcion: venta.cliente['descripcion'],
-            correo_electronico: venta.cliente['correo_electronico'],
-            condicion_iva: venta.cliente['condicion_iva'],
-            direccion: venta.cliente['direccion'],
-            telefono: venta.cliente['telefono'],
-            productos: productosPDF,
-            total: Intl.NumberFormat('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(venta.precio_total)
-        };
+        // const data = {
+        //     fecha: venta.fecha_venta ? format(venta.fecha_venta, 'dd/MM/yyyy') : format(venta.createdAt, 'dd/MM/yyyy'),
+        //     numero: mostrarNumero,
+        //     formas_pago: formasPagoPDF,
+        //     fecha_venta: add(new Date(fecha_venta), { hours: 3 }),
+        //     descripcion: venta.cliente['descripcion'],
+        //     correo_electronico: venta.cliente['correo_electronico'],
+        //     condicion_iva: venta.cliente['condicion_iva'],
+        //     direccion: venta.cliente['direccion'],
+        //     telefono: venta.cliente['telefono'],
+        //     productos: productosPDF,
+        //     total: Intl.NumberFormat('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(venta.precio_total)
+        // };
 
-        // Configuraciones de documento
-        var document = {
-            html: html,
-            data,
-            path: (process.env.PUBLIC_DIR || './public') + '/pdf/venta-propia.pdf'
-        }
+        // // Configuraciones de documento
+        // var document = {
+        //     html: html,
+        //     data,
+        //     path: (process.env.PUBLIC_DIR || './public') + '/pdf/venta-propia.pdf'
+        // }
 
-        // Generacion de PDF
-        await pdf.create(document, options);
+        // // Generacion de PDF
+        // await pdf.create(document, options);
+
+        // TODO: RESPUESTA FINAL
 
         return 'Venta creada correctamente';
 

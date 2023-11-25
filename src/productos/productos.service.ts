@@ -241,7 +241,9 @@ export class ProductosService {
   
     const producto = new this.productosModel(productoDTO);
 
-    return await producto.save();
+    const productoDB = await producto.save();
+
+    return await this.getId(productoDB._id);
 
   } 
 
