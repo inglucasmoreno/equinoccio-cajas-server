@@ -97,8 +97,6 @@ export class MovimientosInternosService {
       usuario,
     } = querys;
 
-    console.log(usuario);
-
     let permisosAdaptados = [];
     let usuarioDB: any  = null;
 
@@ -236,5 +234,13 @@ export class MovimientosInternosService {
     const movimientoInterno = await this.movimientosInternosModel.findByIdAndUpdate(id, movimientosInternosUpdateDTO, { new: true });
     return movimientoInterno;
   }
+
+  // Baja de movimiento
+  async bajaMovimiento(id: string): Promise<String> {
+    const movimiento = await this.movimientosInternosModel.findById(id);
+    console.log(movimiento);
+    return "Baja de movimiento";
+  }
+
 
 }
