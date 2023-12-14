@@ -13,6 +13,8 @@ import { CcClientesMovimientosSchema } from 'src/cc-clientes-movimientos/schema/
 import { CcProveedoresMovimientosSchema } from 'src/cc-proveedores-movimientos/schema/cc-proveedores-movimientos.schema';
 import { CajasMovimientosSchema } from 'src/cajas-movimientos/schema/cajas-movimientos.schema';
 import { cajasSchema } from 'src/cajas/schema/cajas.schema';
+import { gastosSchema } from 'src/gastos/schema/gastos.schema';
+import { MovimientosInternosSchema } from 'src/movimientos-internos/schema/movimientos-internos.schema';
 
 @Module({
   imports: [
@@ -28,6 +30,8 @@ import { cajasSchema } from 'src/cajas/schema/cajas.schema';
       { name: 'CcClientesMovimientos', schema: CcClientesMovimientosSchema },
       { name: 'CcProveedoresMovimientos', schema: CcProveedoresMovimientosSchema },
       { name: 'CajasMovimientos', schema: CajasMovimientosSchema },
+      { name: 'Gastos', schema: gastosSchema },
+			{ name: 'MovimientosInternos', schema: MovimientosInternosSchema },
 		])
 	],
   providers: [ReportesService],

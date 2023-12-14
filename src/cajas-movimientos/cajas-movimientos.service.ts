@@ -5,6 +5,9 @@ import { ICajas } from 'src/cajas/interface/cajas.interface';
 import { CajasMovimientosUpdateDTO } from './dto/cajas-movimientos-update.dto';
 import { CajasMovimientosDTO } from './dto/cajas-movimientos.dto';
 import { ICajasMovimientos } from './interface/cajas-movimientos.interface';
+import { IGastos } from 'src/gastos/interface/gastos.interface';
+import { IMovimientosInternos } from 'src/movimientos-internos/interface/movimientos-internos.interface';
+import { IVentasPropias } from 'src/ventas-propias/interface/ventas-propias.interface';
 
 @Injectable()
 export class CajasMovimientosService {
@@ -12,6 +15,9 @@ export class CajasMovimientosService {
   constructor(
     @InjectModel('CajasMovimientos') private readonly movimientosModel: Model<ICajasMovimientos>,
     @InjectModel('Cajas') private readonly cajasModel: Model<ICajas>,
+    @InjectModel('Gastos') private readonly gastosModel: Model<IGastos>,
+    @InjectModel('MovimientosInternos') private readonly movimientosInternosModel: Model<IMovimientosInternos>,
+    @InjectModel('VentasPropias') private readonly ventasPropiasModel: Model<IVentasPropias>,
   ){};
 
 
@@ -172,6 +178,36 @@ export class CajasMovimientosService {
       this.movimientosModel.aggregate(pipeline),
       this.movimientosModel.aggregate(pipelineTotal)
     ]);
+
+    // Se agregan las obervaciones personalizadas
+
+    // Se recorren los movimientos con await interno
+    for (const movimiento of movimientos) {
+      
+      // Es un Gasto
+      if(movimiento.gasto){
+        const gastoDB:any = await this.gastosModel.findById(movimiento.gasto);
+        movimiento.observaciones_personalizadas = gastoDB.observacion;
+      }
+
+      // Es un Movimiento - Interno
+      else if(movimiento.movimiento_interno){
+        const movimientoInternoDB = await this.movimientosInternosModel.findById(movimiento.movimiento_interno);
+        movimiento.observaciones_personalizadas = movimientoInternoDB.observacion;
+      }
+
+      // Es una Venta - Propia
+      else if(movimiento.venta_propia){
+        const ventaPropiaDB = await this.ventasPropiasModel.findById(movimiento.venta_propia);
+        movimiento.observaciones_personalizadas = ventaPropiaDB.observacion;
+      }
+
+      // Ninguna de las anteriores
+      else {
+        movimiento.observaciones_personalizadas = '';
+      }
+
+    }
 
     return {
       movimientos,

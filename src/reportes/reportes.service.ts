@@ -14,6 +14,8 @@ import { ICcClientesMovimientos } from 'src/cc-clientes-movimientos/interface/cc
 import { ICcProveedoresMovimientos } from 'src/cc-proveedores-movimientos/interface/cc-proveedores-movimientos.interface';
 import { ICajasMovimientos } from 'src/cajas-movimientos/interface/cajas-movimientos.interface';
 import { ICajas } from 'src/cajas/interface/cajas.interface';
+import { IGastos } from 'src/gastos/interface/gastos.interface';
+import { IMovimientosInternos } from 'src/movimientos-internos/interface/movimientos-internos.interface';
 
 @Injectable()
 export class ReportesService {
@@ -30,6 +32,8 @@ export class ReportesService {
     @InjectModel('CcClientesMovimientos') private readonly clientesMovimientosModel: Model<ICcClientesMovimientos>,
     @InjectModel('CcProveedoresMovimientos') private readonly proveedoresMovimientosModel: Model<ICcProveedoresMovimientos>,
     @InjectModel('CajasMovimientos') private readonly cajasMovimientosModel: Model<ICajasMovimientos>,
+    @InjectModel('Gastos') private readonly gastosModel: Model<IGastos>,
+    @InjectModel('MovimientosInternos') private readonly movimientosInternosModel: Model<IMovimientosInternos>,
   ) { };
 
   // REPORTES - EXCEL
@@ -1005,6 +1009,34 @@ export class ReportesService {
 
     const movimientos = await this.cajasMovimientosModel.aggregate(pipeline);
 
+    // Se recorren los movimientos con await interno
+    for (const movimiento of movimientos) {
+      
+      // Es un Gasto
+      if(movimiento.gasto){
+        const gastoDB:any = await this.gastosModel.findById(movimiento.gasto);
+        movimiento.observaciones_personalizadas = gastoDB.observacion;
+      }
+
+      // Es un Movimiento - Interno
+      else if(movimiento.movimiento_interno){
+        const movimientoInternoDB = await this.movimientosInternosModel.findById(movimiento.movimiento_interno);
+        movimiento.observaciones_personalizadas = movimientoInternoDB.observacion;
+      }
+
+      // Es una Venta - Propia
+      else if(movimiento.venta_propia){
+        const ventaPropiaDB = await this.ventasPropiasModel.findById(movimiento.venta_propia);
+        movimiento.observaciones_personalizadas = ventaPropiaDB.observacion;
+      }
+
+      // Ninguna de las anteriores
+      else {
+        movimiento.observaciones_personalizadas = '';
+      }
+
+    }
+
     // GENERACION EXCEL
 
     const workbook = new ExcelJs.Workbook();
@@ -1017,7 +1049,7 @@ export class ReportesService {
       `${fechaHasta && fechaHasta.trim() !== '' ? format(add(new Date(fechaHasta), { hours: 3 }), 'dd-MM-yyyy') : 'Ahora'}`
     ]);
 
-    worksheet.addRow(['Fecha de creación', 'Número', 'Descripción', 'Debe', 'Haber', 'Saldo']);
+    worksheet.addRow(['Fecha de creación', 'Número', 'Tipo', 'Observaciones', 'Debe', 'Haber', 'Saldo']);
 
     // Autofiltro
 
@@ -1033,10 +1065,11 @@ export class ReportesService {
 
     worksheet.getColumn(1).width = 20; // Fecha creacion
     worksheet.getColumn(2).width = 16; // Numero
-    worksheet.getColumn(3).width = 40; // Descripcion
-    worksheet.getColumn(4).width = 20; // Debe
-    worksheet.getColumn(5).width = 20; // Haber
-    worksheet.getColumn(6).width = 20; // Saldo
+    worksheet.getColumn(3).width = 40; // Tipo
+    worksheet.getColumn(4).width = 70; // Observaciones
+    worksheet.getColumn(5).width = 20; // Debe
+    worksheet.getColumn(6).width = 20; // Haber
+    worksheet.getColumn(7).width = 20; // Saldo
 
     // Agregar elementos
     movimientos.map(movimiento => {
@@ -1044,6 +1077,7 @@ export class ReportesService {
         add(movimiento.createdAt, { hours: -3 }),
         movimiento.nro,
         movimiento.descripcion,
+        movimiento.observaciones_personalizadas,
         movimiento.tipo === 'Debe' ? movimiento.monto : '',
         movimiento.tipo === 'Haber' ? movimiento.monto : '',
         movimiento.saldo_nuevo,

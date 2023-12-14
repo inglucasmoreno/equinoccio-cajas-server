@@ -230,7 +230,7 @@ export class GastosService {
     const cajaDB = await this.cajasModel.findById(caja);
     const saldoCaja = cajaDB.saldo;
 
-    if (saldoCaja < monto) throw new NotFoundException('El gasto no puede exceder el saldo de caja');
+    // if (saldoCaja < monto) throw new NotFoundException('El gasto no puede exceder el saldo de caja');
 
     // NRO DE GASTO
 

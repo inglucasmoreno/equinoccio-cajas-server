@@ -238,7 +238,6 @@ export class MovimientosInternosService {
   // Baja de movimiento
   async bajaMovimiento(id: string): Promise<String> {
     const movimiento = await this.movimientosInternosModel.findById(id);
-    console.log(movimiento);
     return "Baja de movimiento";
   }
 
