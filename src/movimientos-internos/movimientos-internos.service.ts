@@ -5,12 +5,14 @@ import { MovimientosInternosUpdateDTO } from './dto/movimientos-internos-update.
 import { MovimientosInternosDTO } from './dto/movimientos-internos.dto';
 import { IMovimientosInternos } from './interface/movimientos-internos.interface';
 import { IUsuario } from 'src/usuarios/interface/usuarios.interface';
+import { ICajas } from 'src/cajas/interface/cajas.interface';
 
 @Injectable()
 export class MovimientosInternosService {
 
   constructor(
     @InjectModel('MovimientosInternos') private readonly movimientosInternosModel: Model<IMovimientosInternos>,
+    @InjectModel('Cajas') private readonly cajasModel: Model<ICajas>,
     @InjectModel('Usuarios') private readonly usuarioModel: Model<IUsuario>,
   ) { };
 
@@ -95,6 +97,7 @@ export class MovimientosInternosService {
       registerpp,
       parametro,
       usuario,
+      activo
     } = querys;
 
     let permisosAdaptados = [];
@@ -111,6 +114,14 @@ export class MovimientosInternosService {
 
     pipeline.push({ $match: {} });
     pipelineTotal.push({ $match: {} });
+
+    // Activo / Inactivo
+    let filtroActivo = {};
+    if (activo && activo !== '') {
+      filtroActivo = { activo: activo === 'true' ? true : false };
+      pipeline.push({ $match: filtroActivo });
+      pipelineTotal.push({ $match: filtroActivo });
+    }
 
     // Informacion de caja origen
     pipeline.push({
@@ -235,11 +246,39 @@ export class MovimientosInternosService {
     return movimientoInterno;
   }
 
-  // Baja de movimiento
-  async bajaMovimiento(id: string): Promise<String> {
-    const movimiento = await this.movimientosInternosModel.findById(id);
-    return "Baja de movimiento";
-  }
+  // Alta/Baja de movimiento
+  async altaBajaMovimiento(id: string): Promise<any> {
 
+    // Se verifica si el movimiento existe
+    const movimientoDB = await this.movimientosInternosModel.findById(id);
+    if (!movimientoDB) throw new NotFoundException('El movimiento no existe');
+    
+    // Se obtienen los saldos de las cajas origen y destino
+    const cajaOrigen = await this.cajasModel.findById(movimientoDB.caja_origen);
+    const cajaDestino = await this.cajasModel.findById(movimientoDB.caja_destino);
+
+    let nuevoSaldoOrigen = null;
+    let nuevoSaldoDestino = null;
+
+    if(movimientoDB.activo){ // Baja de movimiento
+      nuevoSaldoOrigen = cajaOrigen.saldo + movimientoDB.monto_origen;
+      nuevoSaldoDestino = cajaDestino.saldo - movimientoDB.monto_destino;
+    }else{                   // Alta de movimiento
+      nuevoSaldoOrigen = cajaOrigen.saldo - movimientoDB.monto_origen;
+      nuevoSaldoDestino = cajaDestino.saldo + movimientoDB.monto_destino;
+    }
+    
+    if(nuevoSaldoDestino === null || nuevoSaldoDestino === null) throw new NotFoundException('Error en la baja');
+
+    // Se actualizan los saldos de las cajas
+    await this.cajasModel.findByIdAndUpdate(movimientoDB.caja_origen, { saldo: nuevoSaldoOrigen });
+    await this.cajasModel.findByIdAndUpdate(movimientoDB.caja_destino, { saldo: nuevoSaldoDestino });
+
+    // Se da de Alta/Baja el movimiento
+    const nuevoMovimiento = await this.movimientosInternosModel.findByIdAndUpdate(id, { activo: !movimientoDB.activo },{ new: true });
+
+    return nuevoMovimiento;
+
+  }
 
 }

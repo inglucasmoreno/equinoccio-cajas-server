@@ -54,15 +54,18 @@ export class MovimientosInternosController {
         });
     }
 
-    // Baja de movimiento 
+    // Alta/Baja de movimiento
     @UseGuards(JwtAuthGuard)
-    @Put('/baja-movimiento/:id')
-    async bajaMovimiento(@Res() res, @Param('id') movimientoID) {
-        await this.movimientosInternosService.bajaMovimiento(movimientoID);
+    @Put('/alta-baja-movimiento/:id')
+    async altaBajaMovimiento(@Res() res, @Param('id') movimientoID) {
+        const movimiento = await this.movimientosInternosService.altaBajaMovimiento(movimientoID);
+        let message = '';
+        if(movimiento.activo) message = 'Movimiento dado de alta correctamente';
+        else message = 'Movimiento dado de baja correctamente';
         res.status(HttpStatus.OK).json({
-            message: 'Movimiento dado de baja correctamente',
+            message,
+            movimiento
         });
     }
-
 
 }
