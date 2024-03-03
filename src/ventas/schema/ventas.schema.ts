@@ -31,7 +31,8 @@ export const ventasSchema = new Schema({
 
   observacion: {
     type: String,
-    default: ''
+    default: '',
+    uppercase: true
   },
 
   precio_total: {
