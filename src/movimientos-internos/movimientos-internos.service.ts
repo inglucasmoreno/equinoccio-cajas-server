@@ -6,6 +6,9 @@ import { MovimientosInternosDTO } from './dto/movimientos-internos.dto';
 import { IMovimientosInternos } from './interface/movimientos-internos.interface';
 import { IUsuario } from 'src/usuarios/interface/usuarios.interface';
 import { ICajas } from 'src/cajas/interface/cajas.interface';
+import { cajasSchema } from '../cajas/schema/cajas.schema';
+import { ICajasMovimientos } from 'src/cajas-movimientos/interface/cajas-movimientos.interface';
+import { CONNREFUSED } from 'dns';
 
 @Injectable()
 export class MovimientosInternosService {
@@ -13,6 +16,7 @@ export class MovimientosInternosService {
   constructor(
     @InjectModel('MovimientosInternos') private readonly movimientosInternosModel: Model<IMovimientosInternos>,
     @InjectModel('Cajas') private readonly cajasModel: Model<ICajas>,
+    @InjectModel('CajasMovimientos') private readonly cajasMovimientosModel: Model<ICajasMovimientos>,
     @InjectModel('Usuarios') private readonly usuarioModel: Model<IUsuario>,
   ) { };
 
@@ -101,10 +105,10 @@ export class MovimientosInternosService {
     } = querys;
 
     let permisosAdaptados = [];
-    let usuarioDB: any  = null;
+    let usuarioDB: any = null;
 
     // Busco usuario por ID
-    if(usuario){
+    if (usuario) {
       usuarioDB = await this.usuarioModel.findById(usuario);
       permisosAdaptados = usuarioDB.permisos_cajas?.map((permiso: string) => new Types.ObjectId(permiso));
     }
@@ -176,7 +180,7 @@ export class MovimientosInternosService {
     pipeline.push({ $unwind: '$updatorUser' });
 
     // mongoose filtrar solo los movimientos por permisos de caja origen o destino
-    if(usuario && usuarioDB?.role !== 'ADMIN_ROLE'){
+    if (usuario && usuarioDB?.role !== 'ADMIN_ROLE') {
       pipeline.push({
         $match: {
           $or: [
@@ -247,37 +251,99 @@ export class MovimientosInternosService {
   }
 
   // Alta/Baja de movimiento
-  async altaBajaMovimiento(id: string): Promise<any> {
+  async altaBajaMovimiento(id: string, data: any): Promise<any> {
+
+    const {
+      creatorUser,
+      updatorUser
+    } = data;
 
     // Se verifica si el movimiento existe
-    const movimientoDB = await this.movimientosInternosModel.findById(id);
-    if (!movimientoDB) throw new NotFoundException('El movimiento no existe');
-    
+    const movimientoInternoDB = await this.movimientosInternosModel.findById(id);
+    if (!movimientoInternoDB) throw new NotFoundException('El movimiento no existe');
+
     // Se obtienen los saldos de las cajas origen y destino
-    const cajaOrigen = await this.cajasModel.findById(movimientoDB.caja_origen);
-    const cajaDestino = await this.cajasModel.findById(movimientoDB.caja_destino);
+    const cajaOrigen = await this.cajasModel.findById(movimientoInternoDB.caja_origen);
+    const cajaDestino = await this.cajasModel.findById(movimientoInternoDB.caja_destino);
 
     let nuevoSaldoOrigen = null;
     let nuevoSaldoDestino = null;
 
-    if(movimientoDB.activo){ // Baja de movimiento
-      nuevoSaldoOrigen = cajaOrigen.saldo + movimientoDB.monto_origen;
-      nuevoSaldoDestino = cajaDestino.saldo - movimientoDB.monto_destino;
-    }else{                   // Alta de movimiento
-      nuevoSaldoOrigen = cajaOrigen.saldo - movimientoDB.monto_origen;
-      nuevoSaldoDestino = cajaDestino.saldo + movimientoDB.monto_destino;
+    if (movimientoInternoDB.activo) { // Baja de movimiento
+      nuevoSaldoOrigen = cajaOrigen.saldo + movimientoInternoDB.monto_origen;
+      nuevoSaldoDestino = cajaDestino.saldo - movimientoInternoDB.monto_destino;
+    } else {                   // Alta de movimiento
+      nuevoSaldoOrigen = cajaOrigen.saldo - movimientoInternoDB.monto_origen;
+      nuevoSaldoDestino = cajaDestino.saldo + movimientoInternoDB.monto_destino;
     }
-    
-    if(nuevoSaldoDestino === null || nuevoSaldoDestino === null) throw new NotFoundException('Error en la baja');
+
+    if (nuevoSaldoDestino === null || nuevoSaldoDestino === null) throw new NotFoundException('Error en la baja');
 
     // Se actualizan los saldos de las cajas
-    await this.cajasModel.findByIdAndUpdate(movimientoDB.caja_origen, { saldo: nuevoSaldoOrigen });
-    await this.cajasModel.findByIdAndUpdate(movimientoDB.caja_destino, { saldo: nuevoSaldoDestino });
+    await this.cajasModel.findByIdAndUpdate(movimientoInternoDB.caja_origen, { saldo: nuevoSaldoOrigen });
+    await this.cajasModel.findByIdAndUpdate(movimientoInternoDB.caja_destino, { saldo: nuevoSaldoDestino });
 
     // Se da de Alta/Baja el movimiento
-    const nuevoMovimiento = await this.movimientosInternosModel.findByIdAndUpdate(id, { activo: !movimientoDB.activo },{ new: true });
+    const nuevoMovimientoInterno = await this.movimientosInternosModel.findByIdAndUpdate(id, { activo: !movimientoInternoDB.activo }, { new: true });
 
-    return nuevoMovimiento;
+    // GENERACION DE MOVIMIENTO - CAJA ORIGEN
+
+    // Proximo numero de movimiento - MOVIMIENTOS DE CAJA
+    let nroMovimientoCaja = 0;
+    const ultimoCajaMovOrigen = await this.cajasMovimientosModel.find().sort({ createdAt: -1 }).limit(1);
+    ultimoCajaMovOrigen.length === 0 ? nroMovimientoCaja = 0 : nroMovimientoCaja = Number(ultimoCajaMovOrigen[0].nro);
+
+    const dataMovimientoOrigen = {
+      nro: nroMovimientoCaja + 1,
+      descripcion: nuevoMovimientoInterno.activo ? `ALTA MOVIMIENTO INTERNO - Nro ${movimientoInternoDB.nro}` : `BAJA MOVIMIENTO INTERNO - Nro ${movimientoInternoDB.nro}`,
+      tipo: nuevoMovimientoInterno.activo ? 'Haber' : 'Debe',
+      caja: movimientoInternoDB.caja_origen,
+      movimiento_interno: String(movimientoInternoDB._id),
+      monto: this.redondear(movimientoInternoDB.monto_origen, 2),
+      saldo_anterior: this.redondear(cajaOrigen.saldo, 2),
+      saldo_nuevo: this.redondear(nuevoSaldoOrigen, 2),
+      creatorUser,
+      updatorUser
+    };
+
+    const nuevoMovimientoCajaOrigen = new this.cajasMovimientosModel(dataMovimientoOrigen);
+    await nuevoMovimientoCajaOrigen.save();
+
+    // GENERACION DE MOVIMIENTO - CAJA DESTINO
+
+    // Proximo numero de movimiento - MOVIMIENTOS DE CAJA
+    nroMovimientoCaja = 0;
+    const ultimoCajaMovDestino = await this.cajasMovimientosModel.find().sort({ createdAt: -1 }).limit(1);
+    ultimoCajaMovDestino.length === 0 ? nroMovimientoCaja = 0 : nroMovimientoCaja = Number(ultimoCajaMovDestino[0].nro);
+
+    const dataMovimientoDestino = {
+      nro: nroMovimientoCaja + 1,
+      descripcion: nuevoMovimientoInterno.activo ? `ALTA MOVIMIENTO INTERNO - Nro ${movimientoInternoDB.nro}` : `BAJA MOVIMIENTO INTERNO - Nro ${movimientoInternoDB.nro}`,
+      tipo: nuevoMovimientoInterno.activo ? 'Debe' : 'Haber',
+      caja: movimientoInternoDB.caja_destino,
+      movimiento_interno: String(movimientoInternoDB._id),
+      monto: this.redondear(movimientoInternoDB.monto_destino, 2),
+      saldo_anterior: this.redondear(cajaDestino.saldo, 2),
+      saldo_nuevo: this.redondear(nuevoSaldoDestino, 2),
+      creatorUser,
+      updatorUser
+    };
+
+    const nuevoMovimientoCajaDestino = new this.cajasMovimientosModel(dataMovimientoDestino);
+    await nuevoMovimientoCajaDestino.save();
+
+    return nuevoMovimientoInterno;
+
+  }
+
+  // Funcion para redondeo
+  redondear(numero: number, decimales: number): number {
+
+    if (typeof numero != 'number' || typeof decimales != 'number') return null;
+
+    let signo = numero >= 0 ? 1 : -1;
+
+    return Number((Math.round((numero * Math.pow(10, decimales)) + (signo * 0.0001)) / Math.pow(10, decimales)).toFixed(decimales));
 
   }
 

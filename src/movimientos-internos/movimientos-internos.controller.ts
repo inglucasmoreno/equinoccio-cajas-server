@@ -57,8 +57,8 @@ export class MovimientosInternosController {
     // Alta/Baja de movimiento
     @UseGuards(JwtAuthGuard)
     @Put('/alta-baja-movimiento/:id')
-    async altaBajaMovimiento(@Res() res, @Param('id') movimientoID) {
-        const movimiento = await this.movimientosInternosService.altaBajaMovimiento(movimientoID);
+    async altaBajaMovimiento(@Res() res, @Body() data: any, @Param('id') movimientoID) {
+        const movimiento = await this.movimientosInternosService.altaBajaMovimiento(movimientoID, data);
         let message = '';
         if(movimiento.activo) message = 'Movimiento dado de alta correctamente';
         else message = 'Movimiento dado de baja correctamente';
