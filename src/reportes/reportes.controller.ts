@@ -1,5 +1,4 @@
-import { Controller, Get, Query, Res, UseGuards } from '@nestjs/common';
-import { ComprasService } from 'src/compras/compras.service';
+import { Body, Controller, Get, Post, Query, Res, UseGuards } from '@nestjs/common';
 import { ReportesService } from './reportes.service';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 
@@ -150,6 +149,22 @@ export class ReportesController {
     });
     res.send(buffer);
   }
+
+  // Reporte en Excel - Gastos
+  @UseGuards(JwtAuthGuard)
+  @Get('/excel/gastos')
+  async gastosExcel(@Res() res, @Query() querys) {
+    console.log('llega');
+    const buffer = await this.reportesService.gastosExcel(querys);
+    res.set({
+      'Content-Type': 'application/octet-stream',
+      'Content-Disposition': 'attachment; filename="datos.xlsx"',
+      'Content-Length': buffer.length,
+    });
+    res.send(buffer);
+  }
+
+
 
 
 }

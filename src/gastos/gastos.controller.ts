@@ -24,7 +24,7 @@ export class GastosController {
   @UseGuards(JwtAuthGuard)
   @Get('/')
   async getAll(@Res() res, @Query() querys) {
-    const {gastos, totalItems} = await this.gastosService.getAll(querys);
+    const { gastos, totalItems } = await this.gastosService.getAll(querys);
     res.status(HttpStatus.OK).json({
       message: 'Listado de gastos correcto',
       gastos,

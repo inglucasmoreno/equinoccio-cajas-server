@@ -795,23 +795,23 @@ export class ReportesService {
 
     // Se agrega la fecha de recibo de cobro
     for (const elemento of movimientos) {
-      
+
       let nuevoElemento = elemento;
-      
+
       if (elemento.recibo_cobro !== '') {
         const reciboCobro = await this.recibosCobroModel.findById(elemento.recibo_cobro);
         nuevoElemento.fecha_comprobante = reciboCobro.fecha_cobro ? reciboCobro.fecha_cobro : reciboCobro.createdAt;
         movimientosReporte.push(nuevoElemento);
-      }else if(elemento.venta_propia !== '') {
+      } else if (elemento.venta_propia !== '') {
         const ventaPropia = await this.ventasPropiasModel.findById(elemento.venta_propia);
         nuevoElemento.fecha_comprobante = ventaPropia.fecha_venta ? ventaPropia.fecha_venta : ventaPropia.createdAt;
         movimientosReporte.push(nuevoElemento);
-      }else {
+      } else {
         nuevoElemento.fecha_comprobante = '';
         movimientosReporte.push(nuevoElemento);
-      }    
+      }
     }
-    
+
     // GENERACION EXCEL
 
     const workbook = new ExcelJs.Workbook();
@@ -910,11 +910,11 @@ export class ReportesService {
         const ordenPago = await this.ordenesPagoModel.findById(elemento.orden_pago);
         nuevoElemento.fecha_comprobante = ordenPago.fecha_pago ? ordenPago.fecha_pago : ordenPago.createdAt;
         movimientosReporte.push(nuevoElemento);
-      }else if (elemento.compra !== '') {
+      } else if (elemento.compra !== '') {
         const compra = await this.comprasModel.findById(elemento.compra);
         nuevoElemento.fecha_comprobante = compra.fecha_compra ? compra.fecha_compra : compra.createdAt;
         movimientosReporte.push(nuevoElemento);
-      }else {
+      } else {
         nuevoElemento.fecha_comprobante = '';
         movimientosReporte.push(nuevoElemento);
       }
@@ -1011,21 +1011,21 @@ export class ReportesService {
 
     // Se recorren los movimientos con await interno
     for (const movimiento of movimientos) {
-      
+
       // Es un Gasto
-      if(movimiento.gasto){
-        const gastoDB:any = await this.gastosModel.findById(movimiento.gasto);
+      if (movimiento.gasto) {
+        const gastoDB: any = await this.gastosModel.findById(movimiento.gasto);
         movimiento.observaciones_personalizadas = gastoDB.observacion;
       }
 
       // Es un Movimiento - Interno
-      else if(movimiento.movimiento_interno){
+      else if (movimiento.movimiento_interno) {
         const movimientoInternoDB = await this.movimientosInternosModel.findById(movimiento.movimiento_interno);
         movimiento.observaciones_personalizadas = movimientoInternoDB.observacion;
       }
 
       // Es una Venta - Propia
-      else if(movimiento.venta_propia){
+      else if (movimiento.venta_propia) {
         const ventaPropiaDB = await this.ventasPropiasModel.findById(movimiento.venta_propia);
         movimiento.observaciones_personalizadas = ventaPropiaDB.observacion;
       }
@@ -1165,6 +1165,153 @@ export class ReportesService {
         caja.saldo,
         add(caja.createdAt, { hours: -3 }),
         caja.activo ? 'Activa' : 'Inactiva',
+      ]);
+    });
+
+    return await workbook.xlsx.writeBuffer();
+
+  }
+
+  // Reportes -> Gastos Excel
+  async gastosExcel({
+    fechaDesde = '',
+    fechaHasta = '',
+    parametro = '',
+    caja = '',
+    tipo_gasto = '',
+    activo = '',
+  }): Promise<any> {
+
+    // OBTENCION DE DATOS
+
+    const pipeline = [];
+    pipeline.push({ $match: {} });
+
+    // Activo / Inactivo
+    let filtroActivo = {};
+    if (activo && activo !== '') {
+      filtroActivo = { activo: activo === 'true' ? true : false };
+      pipeline.push({ $match: filtroActivo });
+    }
+
+    // Filtro por caja
+    if (caja && caja !== '') {
+      const idCaja = new Types.ObjectId(caja);
+      pipeline.push({ $match: { caja: idCaja } });
+    }
+
+    // Filtro por tipo de gasto
+    if (tipo_gasto && tipo_gasto !== '') {
+      const idTipoGasto = new Types.ObjectId(tipo_gasto);
+      pipeline.push({ $match: { tipo_gasto: idTipoGasto } });
+    }
+
+    // Filtro por parametros
+    if (parametro && parametro !== '') {
+
+      const porPartes = parametro.split(' ');
+      let parametroFinal = '';
+
+      for (var i = 0; i < porPartes.length; i++) {
+        if (i > 0) parametroFinal = parametroFinal + porPartes[i] + '.*';
+        else parametroFinal = porPartes[i] + '.*';
+      }
+
+      const regex = new RegExp(parametroFinal, 'i');
+      pipeline.push({ $match: { $or: [{ numero: Number(parametro) }, { 'observacion': regex }, { 'cajas.descripcion': regex }] } });
+
+    }
+
+    // Filtro por fechas [ Desde -> Hasta ]
+
+    if (fechaDesde && fechaDesde.trim() !== '') {
+      pipeline.push({
+        $match: {
+          fecha_gasto: { $gte: add(new Date(fechaDesde), { hours: 3 }) }
+        }
+      });
+    }
+
+    if (fechaHasta && fechaHasta.trim() !== '') {
+      pipeline.push({
+        $match: {
+          fecha_gasto: { $lte: add(new Date(fechaHasta), { days: 1, hours: 3 }) }
+        }
+      });
+    }
+
+    // Informacion de cajas
+    pipeline.push({
+      $lookup: { // Lookup
+        from: 'cajas',
+        localField: 'caja',
+        foreignField: '_id',
+        as: 'caja'
+      }
+    }
+    );
+
+    pipeline.push({ $unwind: '$caja' });
+
+    // Informacion de tipo de gasto
+    pipeline.push({
+      $lookup: { // Lookup
+        from: 'tipos_gastos',
+        localField: 'tipo_gasto',
+        foreignField: '_id',
+        as: 'tipo_gasto'
+      }
+    }
+    );
+
+    pipeline.push({ $unwind: '$tipo_gasto' });
+
+    const gastos = await this.gastosModel.aggregate(pipeline);
+
+    // GENERACION EXCEL
+
+    const workbook = new ExcelJs.Workbook();
+    const worksheet = workbook.addWorksheet('Reporte');
+
+    worksheet.addRow([
+      'Desde:',
+      `${fechaDesde && fechaDesde.trim() !== '' ? format(add(new Date(fechaDesde), { hours: 3 }), 'dd-MM-yyyy') : 'Principio'}`,
+      'Hasta:',
+      `${fechaHasta && fechaHasta.trim() !== '' ? format(add(new Date(fechaHasta), { hours: 3 }), 'dd-MM-yyyy') : 'Ahora'}`
+    ]);
+
+    worksheet.addRow(['Nro', 'Fecha', 'Tipo de gasto', 'Observaciones', 'Caja', 'Monto', 'Estado']);
+
+    // Autofiltro
+
+    worksheet.autoFilter = 'A2:G2';
+
+    // Estilo de filas y columnas
+
+    worksheet.getRow(1).height = 20;
+    worksheet.getRow(2).height = 20;
+
+    worksheet.getRow(1).eachCell(cell => { cell.font = { bold: true } });
+    worksheet.getRow(2).eachCell(cell => { cell.font = { bold: true } });
+
+    worksheet.getColumn(1).width = 20; // Nro
+    worksheet.getColumn(2).width = 20; // Fecha
+    worksheet.getColumn(3).width = 25; // Tipo de gasto
+    worksheet.getColumn(4).width = 40; // Observaciones
+    worksheet.getColumn(5).width = 20; // Caja
+    worksheet.getColumn(6).width = 20; // Monto
+    worksheet.getColumn(7).width = 20; // Estado
+
+    // Agregar elementos
+    gastos.map(gasto => {
+      worksheet.addRow([
+        gasto.numero,
+        add(gasto.fecha_gasto, { hours: -3 }),
+        gasto.tipo_gasto.descripcion,
+        gasto.observacion,
+        gasto.caja.descripcion,
+        gasto.monto,
+        gasto.activo ? 'Habilitado' : 'Deshabilitado',
       ]);
     });
 

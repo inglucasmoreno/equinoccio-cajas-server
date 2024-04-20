@@ -97,6 +97,8 @@ export class GastosService {
       desde,
       registerpp,
       creatorUser,
+      caja = "",
+      tipo_gasto = "",
       activo,
       parametro,
     } = querys;
@@ -109,17 +111,31 @@ export class GastosService {
       const idUsuario = new Types.ObjectId(creatorUser);
       pipeline.push({ $match: { creatorUser: idUsuario } });
       pipelineTotal.push({ $match: { creatorUser: idUsuario } });
-    }else{
+    } else {
       pipeline.push({ $match: {} });
       pipelineTotal.push({ $match: {} });
     }
-    
+
     // Activo / Inactivo
     let filtroActivo = {};
     if (activo && activo !== '') {
       filtroActivo = { activo: activo === 'true' ? true : false };
       pipeline.push({ $match: filtroActivo });
       pipelineTotal.push({ $match: filtroActivo });
+    }
+
+    // Filtro por caja
+    if (caja && caja !== '') {
+      const idCaja = new Types.ObjectId(caja);
+      pipeline.push({ $match: { caja: idCaja } });
+      pipelineTotal.push({ $match: { caja: idCaja } });
+    }
+
+    // Filtro por tipo de gasto
+    if (tipo_gasto && tipo_gasto !== '') {
+      const idTipoGasto = new Types.ObjectId(tipo_gasto);
+      pipeline.push({ $match: { tipo_gasto: idTipoGasto } });
+      pipelineTotal.push({ $match: { tipo_gasto: idTipoGasto } });
     }
 
     // Filtro por parametros
@@ -134,7 +150,7 @@ export class GastosService {
       }
 
       const regex = new RegExp(parametroFinal, 'i');
-      pipeline.push({ $match: { $or: [{ numero: Number(parametro) }, { 'observacion': regex }] } });
+      pipeline.push({ $match: { $or: [{ numero: Number(parametro) }, { 'observacion': regex }, { 'cajas.descripcion': regex }] } });
       pipelineTotal.push({ $match: { $or: [{ numero: Number(parametro) }, { 'observacion': regex }] } });
 
     }
@@ -282,7 +298,7 @@ export class GastosService {
       saldo_nuevo: this.redondear(nuevoSaldo, 2),
       creatorUser,
       updatorUser
-    }; 
+    };
 
     const nuevoMovimiento = new this.cajasMovimientosModel(dataMovimiento);
     await nuevoMovimiento.save();
@@ -320,14 +336,14 @@ export class GastosService {
     let nuevoSaldo = 0;
 
 
-    if(!activo){ // Baja de gasto
+    if (!activo) { // Baja de gasto
       nuevoSaldo = cajaDB.saldo + gastoDB.monto;
     }
 
-    if(activo){ // Alta de gasto
-      nuevoSaldo = cajaDB.saldo - gastoDB.monto; 
+    if (activo) { // Alta de gasto
+      nuevoSaldo = cajaDB.saldo - gastoDB.monto;
     }
-    
+
     // Impacto sobre caja
     await this.cajasModel.findByIdAndUpdate(cajaDB._id, { saldo: nuevoSaldo });
 
@@ -347,7 +363,7 @@ export class GastosService {
       saldo_nuevo: this.redondear(nuevoSaldo, 2),
       creatorUser,
       updatorUser
-    }; 
+    };
 
     const nuevoMovimiento = new this.cajasMovimientosModel(dataMovimiento);
     await nuevoMovimiento.save();
