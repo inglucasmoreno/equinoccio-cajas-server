@@ -99,6 +99,7 @@ export class GastosService {
       creatorUser,
       caja = "",
       tipo_gasto = "",
+      factura = "",
       activo,
       parametro,
     } = querys;
@@ -136,6 +137,14 @@ export class GastosService {
       const idTipoGasto = new Types.ObjectId(tipo_gasto);
       pipeline.push({ $match: { tipo_gasto: idTipoGasto } });
       pipelineTotal.push({ $match: { tipo_gasto: idTipoGasto } });
+    }
+
+    // Filtro por factura
+    let filtroFactura = {};
+    if (factura && factura !== '') {
+      filtroFactura = { factura: factura === 'true' ? true : factura === 'false' ? false : null};
+      pipeline.push({ $match: filtroFactura });
+      pipelineTotal.push({ $match: filtroFactura });
     }
 
     // Filtro por parametros
@@ -234,6 +243,7 @@ export class GastosService {
 
     const {
       fecha_gasto,
+      factura,
       caja,
       monto,
       tipo_gasto,
@@ -262,6 +272,7 @@ export class GastosService {
     const dataGasto = {
       numero: nroGasto,
       fecha_gasto: add(new Date(fecha_gasto), { hours: 3 }),
+      factura: factura === 'true' ? true : false,
       caja,
       tipo_gasto,
       monto,

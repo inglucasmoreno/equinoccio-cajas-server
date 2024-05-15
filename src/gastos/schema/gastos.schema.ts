@@ -35,6 +35,12 @@ export const gastosSchema = new Schema({
     required: true
   },
 
+  factura: {
+    type: Boolean,
+    default: false,
+    required: true
+  },
+
   activo: {
     type: Boolean,
     default: true

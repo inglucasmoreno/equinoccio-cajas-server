@@ -5,6 +5,8 @@ export class GastosUpdateDTO {
 
   readonly fecha_gasto: string;
 
+  readonly factura: string;
+
   readonly caja: string;
 
   readonly tipo_gasto: string;

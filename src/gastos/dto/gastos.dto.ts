@@ -8,6 +8,9 @@ export class GastosDTO {
   readonly fecha_gasto: string;
 
   @IsString()
+  readonly factura: string;
+
+  @IsString()
   readonly caja: string;
 
   @IsString()

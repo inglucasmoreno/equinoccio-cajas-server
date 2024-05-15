@@ -1179,6 +1179,7 @@ export class ReportesService {
     parametro = '',
     caja = '',
     tipo_gasto = '',
+    factura = '',
     activo = '',
   }): Promise<any> {
 
@@ -1192,6 +1193,13 @@ export class ReportesService {
     if (activo && activo !== '') {
       filtroActivo = { activo: activo === 'true' ? true : false };
       pipeline.push({ $match: filtroActivo });
+    }
+
+    // Filtro por factura
+    let filtroFactura = {};
+    if (factura && factura !== '') {
+      filtroFactura = { factura: factura === 'true' ? true : factura === 'false' ? false : null};
+      pipeline.push({ $match: filtroFactura });
     }
 
     // Filtro por caja
@@ -1266,6 +1274,8 @@ export class ReportesService {
 
     pipeline.push({ $unwind: '$tipo_gasto' });
 
+    pipeline.push({ $sort: { createdAt: -1 } });
+
     const gastos = await this.gastosModel.aggregate(pipeline);
 
     // GENERACION EXCEL
@@ -1280,7 +1290,7 @@ export class ReportesService {
       `${fechaHasta && fechaHasta.trim() !== '' ? format(add(new Date(fechaHasta), { hours: 3 }), 'dd-MM-yyyy') : 'Ahora'}`
     ]);
 
-    worksheet.addRow(['Nro', 'Fecha', 'Tipo de gasto', 'Observaciones', 'Caja', 'Monto', 'Estado']);
+    worksheet.addRow(['Nro', 'Fecha', 'Factura', 'Tipo de gasto', 'Observaciones', 'Caja', 'Monto', 'Estado']);
 
     // Autofiltro
 
@@ -1296,17 +1306,19 @@ export class ReportesService {
 
     worksheet.getColumn(1).width = 20; // Nro
     worksheet.getColumn(2).width = 20; // Fecha
-    worksheet.getColumn(3).width = 25; // Tipo de gasto
-    worksheet.getColumn(4).width = 40; // Observaciones
-    worksheet.getColumn(5).width = 20; // Caja
-    worksheet.getColumn(6).width = 20; // Monto
-    worksheet.getColumn(7).width = 20; // Estado
+    worksheet.getColumn(3).width = 25; // Factura
+    worksheet.getColumn(4).width = 25; // Tipo de gasto
+    worksheet.getColumn(5).width = 40; // Observaciones
+    worksheet.getColumn(6).width = 20; // Caja
+    worksheet.getColumn(7).width = 20; // Monto
+    worksheet.getColumn(8).width = 20; // Estado
 
     // Agregar elementos
     gastos.map(gasto => {
       worksheet.addRow([
         gasto.numero,
         add(gasto.fecha_gasto, { hours: -3 }),
+        gasto.factura ? 'SI' : gasto.factura === false ? 'NO' : 'Indefinido',
         gasto.tipo_gasto.descripcion,
         gasto.observacion,
         gasto.caja.descripcion,
